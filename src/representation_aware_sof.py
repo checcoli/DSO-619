@@ -53,23 +53,7 @@ from experiment_suite import (
 )
 
 
-SOF_PLUGIN_METHOD_ORDER = [
-    "SOF-raw",
-    "SOF-PCA",
-    "SOF-LASSO",
-    "SOF-pred",
-    "SOF-dec",
-    "Kernel-fixed",
-    "Kernel-dec",
-    "Neural-dec",
-]
-SOF_DECOMPOSITION_METHOD_ORDER = [
-    "SOF-raw",
-    "SOF-raw+kernel",
-    "SOF-dec",
-    "SOF-dec+kernel",
-    "Kernel-dec",
-]
+# ...existing code...
 BENCHMARK_B_REPLICATIONS = int(os.environ.get("SOF_B_REPLICATIONS", "20"))
 BENCHMARK_C_REPLICATIONS = int(os.environ.get("SOF_C_REPLICATIONS", "20"))
 BENCHMARK_A_REPLICATIONS = int(os.environ.get("SOF_A_REPLICATIONS", "6"))
@@ -159,6 +143,85 @@ C_SOF_SUBSAMPLE_RATIO_GRID = _parse_float_grid(os.environ.get("SOF_C_SUBSAMPLE_G
 C_SOF_MAX_DEPTH_GRID = _parse_int_grid(os.environ.get("SOF_C_DEPTH_GRID"), DEFAULT_C_DEPTH_GRID)
 C_PROTOTYPE_SOF_NUM_TREES = int(os.environ.get("SOF_C_NUM_TREES", str(DEFAULT_C_NUM_TREES)))
 C_PROTOTYPE_SOF_N_THRESHOLDS = int(os.environ.get("SOF_C_N_THRESHOLDS", str(DEFAULT_C_N_THRESHOLDS)))
+
+
+# ===== Method Registry =====
+# Declarative method definitions for easier extensibility
+METHOD_REGISTRY_B = {
+    "SOF-raw": {
+        "fit_fn": "fit_tuned_official_sof_transform",
+        "task_kind": "newsvendor",
+        "seed_offset": 90_000,
+        "transform_kind": "identity",
+        "transform_payload_key": None,
+        "subsample_grid": "B_SOF_SUBSAMPLE_RATIO_GRID",
+        "depth_grid": "B_SOF_MAX_DEPTH_GRID",
+        "num_trees": "B_OFFICIAL_SOF_NUM_TREES",
+        "n_proposals": "B_OFFICIAL_SOF_N_PROPOSALS",
+        "mtry_mode": "B_OFFICIAL_SOF_MTRY_MODE",
+        "bootstrap": "B_OFFICIAL_SOF_BOOTSTRAP",
+    },
+    "SOF-PCA": {
+        "fit_fn": "fit_tuned_official_sof_transform",
+        "task_kind": "newsvendor",
+        "seed_offset": 91_000,
+        "transform_kind": "linear_projection",
+        "transform_payload_key": "pca_projection",
+        "subsample_grid": "B_SOF_SUBSAMPLE_RATIO_GRID",
+        "depth_grid": "B_SOF_MAX_DEPTH_GRID",
+        "num_trees": "B_OFFICIAL_SOF_NUM_TREES",
+        "n_proposals": "B_OFFICIAL_SOF_N_PROPOSALS",
+        "mtry_mode": "B_OFFICIAL_SOF_MTRY_MODE",
+        "bootstrap": "B_OFFICIAL_SOF_BOOTSTRAP",
+    },
+    "SOF-LASSO": {
+        "fit_fn": "fit_tuned_official_sof_transform",
+        "task_kind": "newsvendor",
+        "seed_offset": 92_000,
+        "transform_kind": "linear_projection",
+        "transform_payload_key": "lasso_projection",
+        "subsample_grid": "B_SOF_SUBSAMPLE_RATIO_GRID",
+        "depth_grid": "B_SOF_MAX_DEPTH_GRID",
+        "num_trees": "B_OFFICIAL_SOF_NUM_TREES",
+        "n_proposals": "B_OFFICIAL_SOF_N_PROPOSALS",
+        "mtry_mode": "B_OFFICIAL_SOF_MTRY_MODE",
+        "bootstrap": "B_OFFICIAL_SOF_BOOTSTRAP",
+    },
+    "SOF-pred": {
+        "fit_fn": "fit_tuned_official_sof_transform",
+        "task_kind": "newsvendor",
+        "seed_offset": 93_000,
+        "transform_kind": "rotated_2d",
+        "transform_payload_key": "prediction_parameters",
+        "subsample_grid": "B_SOF_SUBSAMPLE_RATIO_GRID",
+        "depth_grid": "B_SOF_MAX_DEPTH_GRID",
+        "num_trees": "B_OFFICIAL_SOF_NUM_TREES",
+        "n_proposals": "B_OFFICIAL_SOF_N_PROPOSALS",
+        "mtry_mode": "B_OFFICIAL_SOF_MTRY_MODE",
+        "bootstrap": "B_OFFICIAL_SOF_BOOTSTRAP",
+    },
+    "SOF-dec": {
+        "fit_fn": "fit_tuned_official_sof_transform",
+        "task_kind": "newsvendor",
+        "seed_offset": 94_000,
+        "transform_kind": "rotated_2d",
+        "transform_payload_key": "decision_parameters",
+        "subsample_grid": "B_SOF_SUBSAMPLE_RATIO_GRID",
+        "depth_grid": "B_SOF_MAX_DEPTH_GRID",
+        "num_trees": "B_OFFICIAL_SOF_NUM_TREES",
+        "n_proposals": "B_OFFICIAL_SOF_N_PROPOSALS",
+        "mtry_mode": "B_OFFICIAL_SOF_MTRY_MODE",
+        "bootstrap": "B_OFFICIAL_SOF_BOOTSTRAP",
+    },
+}
+
+SOF_PLUGIN_METHOD_ORDER = list(METHOD_REGISTRY_B.keys()) + ["Kernel-fixed", "Kernel-dec", "Neural-dec"]
+SOF_DECOMPOSITION_METHOD_ORDER = ["SOF-raw", "SOF-raw+kernel", "SOF-dec", "SOF-dec+kernel", "Kernel-dec"]
+
+# Verification: Ensure method order consistency
+_REGISTRY_METHODS = set(METHOD_REGISTRY_B.keys())
+_PLUGIN_METHODS = set(SOF_PLUGIN_METHOD_ORDER)
+assert _REGISTRY_METHODS.issubset(_PLUGIN_METHODS), f"Registry methods must be in SOF_PLUGIN_METHOD_ORDER. Missing: {_REGISTRY_METHODS - _PLUGIN_METHODS}"
 
 
 def _log(message: str) -> None:
@@ -860,161 +923,88 @@ def run_benchmark_b_plugin_replication(
         maxfev=220,
     )
 
-    method_results = {
-        "Kernel-fixed": {
-            "metrics": evaluate_newsvendor_transform(
-                x_train_std,
-                y_train,
-                x_val_std,
-                y_val,
-                mean_val,
-                x_test_std,
-                y_test,
-                mean_test,
-                oracle_orders,
-                transform_kind="identity",
-                transform_payload=None,
-            )
-        },
-        "Kernel-dec": {
-            "metrics": evaluate_newsvendor_transform(
-                x_train_std,
-                y_train,
-                x_val_std,
-                y_val,
-                mean_val,
-                x_test_std,
-                y_test,
-                mean_test,
-                oracle_orders,
-                transform_kind="rotated_2d",
-                transform_payload=decision_parameters,
-            )
-        },
-        "Neural-dec": {
-            "metrics": evaluate_newsvendor_transform(
-                x_train_std,
-                y_train,
-                x_val_std,
-                y_val,
-                mean_val,
-                x_test_std,
-                y_test,
-                mean_test,
-                oracle_orders,
-                transform_kind="neural_embedding",
-                transform_payload=neural_parameters,
-            )
-        },
+    # Build payload mapping for method registry
+    payloads = {
+        "pca_projection": pca_projection,
+        "lasso_projection": lasso_projection,
+        "prediction_parameters": prediction_parameters,
+        "decision_parameters": decision_parameters,
     }
 
-    raw_sof = fit_tuned_official_sof_transform(
-        x_train_std,
-        y_train,
-        x_val_std,
-        y_val,
-        mean_val,
-        x_test_std,
-        y_test,
-        mean_test,
-        oracle_orders,
-        transform_kind="identity",
-        transform_payload=None,
-        seed=90_000 + replication,
-        subsample_grid=B_SOF_SUBSAMPLE_RATIO_GRID,
-        depth_grid=B_SOF_MAX_DEPTH_GRID,
-        num_trees=B_OFFICIAL_SOF_NUM_TREES,
-        n_proposals=B_OFFICIAL_SOF_N_PROPOSALS,
-        mtry_mode=B_OFFICIAL_SOF_MTRY_MODE,
-        bootstrap=B_OFFICIAL_SOF_BOOTSTRAP,
-    )
-    pca_sof = fit_tuned_official_sof_transform(
-        x_train_std,
-        y_train,
-        x_val_std,
-        y_val,
-        mean_val,
-        x_test_std,
-        y_test,
-        mean_test,
-        oracle_orders,
-        transform_kind="linear_projection",
-        transform_payload=pca_projection,
-        seed=91_000 + replication,
-        subsample_grid=B_SOF_SUBSAMPLE_RATIO_GRID,
-        depth_grid=B_SOF_MAX_DEPTH_GRID,
-        num_trees=B_OFFICIAL_SOF_NUM_TREES,
-        n_proposals=B_OFFICIAL_SOF_N_PROPOSALS,
-        mtry_mode=B_OFFICIAL_SOF_MTRY_MODE,
-        bootstrap=B_OFFICIAL_SOF_BOOTSTRAP,
-    )
-    lasso_sof = fit_tuned_official_sof_transform(
-        x_train_std,
-        y_train,
-        x_val_std,
-        y_val,
-        mean_val,
-        x_test_std,
-        y_test,
-        mean_test,
-        oracle_orders,
-        transform_kind="linear_projection",
-        transform_payload=lasso_projection,
-        seed=92_000 + replication,
-        subsample_grid=B_SOF_SUBSAMPLE_RATIO_GRID,
-        depth_grid=B_SOF_MAX_DEPTH_GRID,
-        num_trees=B_OFFICIAL_SOF_NUM_TREES,
-        n_proposals=B_OFFICIAL_SOF_N_PROPOSALS,
-        mtry_mode=B_OFFICIAL_SOF_MTRY_MODE,
-        bootstrap=B_OFFICIAL_SOF_BOOTSTRAP,
-    )
-    pred_sof = fit_tuned_official_sof_transform(
-        x_train_std,
-        y_train,
-        x_val_std,
-        y_val,
-        mean_val,
-        x_test_std,
-        y_test,
-        mean_test,
-        oracle_orders,
-        transform_kind="rotated_2d",
-        transform_payload=prediction_parameters,
-        seed=93_000 + replication,
-        subsample_grid=B_SOF_SUBSAMPLE_RATIO_GRID,
-        depth_grid=B_SOF_MAX_DEPTH_GRID,
-        num_trees=B_OFFICIAL_SOF_NUM_TREES,
-        n_proposals=B_OFFICIAL_SOF_N_PROPOSALS,
-        mtry_mode=B_OFFICIAL_SOF_MTRY_MODE,
-        bootstrap=B_OFFICIAL_SOF_BOOTSTRAP,
-    )
-    dec_sof = fit_tuned_official_sof_transform(
-        x_train_std,
-        y_train,
-        x_val_std,
-        y_val,
-        mean_val,
-        x_test_std,
-        y_test,
-        mean_test,
-        oracle_orders,
-        transform_kind="rotated_2d",
-        transform_payload=decision_parameters,
-        seed=94_000 + replication,
-        subsample_grid=B_SOF_SUBSAMPLE_RATIO_GRID,
-        depth_grid=B_SOF_MAX_DEPTH_GRID,
-        num_trees=B_OFFICIAL_SOF_NUM_TREES,
-        n_proposals=B_OFFICIAL_SOF_N_PROPOSALS,
-        mtry_mode=B_OFFICIAL_SOF_MTRY_MODE,
-        bootstrap=B_OFFICIAL_SOF_BOOTSTRAP,
-    )
+    # Fit SOF methods from registry
+    method_results = {}
+    for method_name, spec in METHOD_REGISTRY_B.items():
+        transform_payload = payloads.get(spec["transform_payload_key"]) if spec["transform_payload_key"] else None
+        
+        method_results[method_name] = fit_tuned_official_sof_transform(
+            x_train_std,
+            y_train,
+            x_val_std,
+            y_val,
+            mean_val,
+            x_test_std,
+            y_test,
+            mean_test,
+            oracle_orders,
+            transform_kind=spec["transform_kind"],
+            transform_payload=transform_payload,
+            seed=spec["seed_offset"] + replication,
+            subsample_grid=globals()[spec["subsample_grid"]],
+            depth_grid=globals()[spec["depth_grid"]],
+            num_trees=globals()[spec["num_trees"]],
+            n_proposals=globals()[spec["n_proposals"]],
+            mtry_mode=globals()[spec["mtry_mode"]],
+            bootstrap=globals()[spec["bootstrap"]],
+        )
+
+    # Fit kernel and neural methods (non-registry)
     method_results.update(
         {
-            "SOF-raw": raw_sof,
-            "SOF-PCA": pca_sof,
-            "SOF-LASSO": lasso_sof,
-            "SOF-pred": pred_sof,
-            "SOF-dec": dec_sof,
+            "Kernel-fixed": {
+                "metrics": evaluate_newsvendor_transform(
+                    x_train_std,
+                    y_train,
+                    x_val_std,
+                    y_val,
+                    mean_val,
+                    x_test_std,
+                    y_test,
+                    mean_test,
+                    oracle_orders,
+                    transform_kind="identity",
+                    transform_payload=None,
+                )
+            },
+            "Kernel-dec": {
+                "metrics": evaluate_newsvendor_transform(
+                    x_train_std,
+                    y_train,
+                    x_val_std,
+                    y_val,
+                    mean_val,
+                    x_test_std,
+                    y_test,
+                    mean_test,
+                    oracle_orders,
+                    transform_kind="rotated_2d",
+                    transform_payload=decision_parameters,
+                )
+            },
+            "Neural-dec": {
+                "metrics": evaluate_newsvendor_transform(
+                    x_train_std,
+                    y_train,
+                    x_val_std,
+                    y_val,
+                    mean_val,
+                    x_test_std,
+                    y_test,
+                    mean_test,
+                    oracle_orders,
+                    transform_kind="neural_embedding",
+                    transform_payload=neural_parameters,
+                )
+            },
         }
     )
 
@@ -1022,8 +1012,8 @@ def run_benchmark_b_plugin_replication(
     decomposition_rows = decomposition_rows_newsvendor(
         benchmark="B",
         replication=replication,
-        raw_sof=raw_sof,
-        dec_sof=dec_sof,
+        raw_sof=method_results["SOF-raw"],
+        dec_sof=method_results["SOF-dec"],
         kernel_dec_metrics=method_results["Kernel-dec"]["metrics"],
         y_train=y_train,
         y_val=y_val,
