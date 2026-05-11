@@ -1,0 +1,16 @@
+,value
+oracle_cost,5.588135584263403
+global_cost,10.190373718412815
+point_cost,7.869223056133396
+fixed_kernel_cost,6.849976103002542
+learned_kernel_cost,5.987945018920515
+global_regret,4.602238134149412
+point_regret,2.281087471869993
+fixed_kernel_regret,1.2618405187391386
+learned_kernel_regret,0.39980943465711244
+fixed_bandwidth,0.6120596813847955
+learned_bandwidth,1.2660458325580661
+metric_objective,6.192374749975367
+signal_scale_mean,7.217022448539973
+nuisance_scale_mean,0.7078019904822712
+signal_to_nuisance_scale,14.889174059119497

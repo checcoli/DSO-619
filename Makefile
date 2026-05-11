@@ -1,13 +1,16 @@
 PYTHON ?= python
 BENCHMARKS ?= all
 
-.PHONY: verify main-results main-assets artifacts report report-only clean
+.PHONY: verify main-results service-level main-assets artifacts report report-only clean
 
 verify:
 	$(PYTHON) scripts/verify_report_claims.py
 
 main-results:
 	$(PYTHON) scripts/run_main_benchmarks.py --benchmarks $(BENCHMARKS)
+
+service-level:
+	$(PYTHON) scripts/service_level_experiment.py
 
 main-assets:
 	$(PYTHON) scripts/build_main_report_assets.py
