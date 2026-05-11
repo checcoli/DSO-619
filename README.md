@@ -91,3 +91,6 @@ cache-aware and reuse complete rows already present in `reports/assets/`.
 1. Run `make verify`.
 2. Run `make report-only` if LaTeX is installed.
 3. For a full rerun, run `make main-results`, `make main-assets`, `make artifacts`, and then `make report-only`.
+
+
+Check
